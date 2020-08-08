@@ -1,0 +1,126 @@
+{
+	"regions": [
+		{
+			"name" : "us-east1",
+			"country": "United States",
+			"countrycode": "US"
+		},                     
+	    {
+	    	"name": "us-east4",
+	    	"country": "United States",
+			"countrycode": "US"
+	    },                     
+	    {	
+	    	"name": "us-west1",
+	    	"country": "United States",
+			"countrycode": "US"
+	    },                     
+	    {
+	    	"name": "us-west2",
+	    	"country": "United States",
+			"countrycode": "US"
+	    },
+	    {
+	    	"name": "us-west3",
+	    	"country": "United States",
+			"countrycode": "US"
+	    },  
+	    {
+	    	"name": "us-west4",
+	    	"country": "United States",
+			"countrycode": "US"
+	    },                       
+	   	{
+	   		"name":  "us-central1",
+	   		"country": "United States",
+			"countrycode": "US"
+	   	},                  
+	    {	
+	    	"name": "northamerica-northeast1",
+	    	"country": "Canada",
+	    	"countrycode": "CA"
+	    },      
+	    {
+	    	"name": "southamerica-east1",
+	    	"country": "Brazil",
+	    	"countrycode": "BR"
+
+	    },           
+	    {
+	    	"name": "europe-west1",
+	    	"country": "Belgium",
+	    	"countrycode": "BE"
+
+	    },                 
+	    {
+	    	"name": "europe-west2",
+	    	"country": "England",
+	    	"countrycode": "GB"
+	    },                 
+	    {	
+	    	"name": "europe-west3",
+	    	"country": "Germany",
+	    	"countrycode": "DE"
+	    },                 
+	    {
+	    	"name": "europe-west4",
+	    	"country": "Netherlands",
+	    	"countrycode": "NL"
+	    },                 
+	    {
+	    	"name": "europe-west6",
+	    	"country": "Switzerland",
+	    	"countrycode": "CH"
+	    },                 
+	    {
+	    	"name": "europe-north1",
+	    	"country": "Finland",
+	    	"countrycode": "FI"
+	    },                
+	    {	
+	    	"name": "asia-south1",
+	    	"country": "India",
+	    	"countrycode": "IN"
+	    },                  
+	    {
+	    	"name": "asia-southeast1",
+	    	"country": "Singapore",
+	    	"countrycode": "SG"
+	    }, 
+	    {
+	    	"name": "asia-southeast2",
+	    	"country": "Indonesia",
+	    	"countrycode": "ID"
+	    },              
+	    {
+	    	"name": "asia-east1",
+	    	"country": "Taiwan",
+	    	"countrycode": "TW"
+	    },                   
+	    {
+	    	"name": "asia-east2",
+	    	"country": "China",
+	    	"countrycode": "CN"
+	    },                   
+	    {
+	    	"name": "asia-northeast1",
+	    	"country": "Japan",
+	    	"countrycode": "JP"
+	    },               
+	    {
+	    	"name": "asia-northeast2",
+	    	"country": "Japan",
+	    	"countrycode": "JP"
+	    },
+	    {
+	    	"name": "asia-northeast3",
+	    	"country": "South Korea",
+	    	"countrycode": "KR"
+	    },                 
+	    {
+	    	"name": "australia-southeast1",
+	    	"country": "Australia",
+	    	"countrycode": "AU"
+	    }          
+	]
+}

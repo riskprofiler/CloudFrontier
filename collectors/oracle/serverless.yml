@@ -1,0 +1,134 @@
+service: cloud-frontier-collector-oracle
+
+plugins:
+  - serverless-dotenv-plugin
+
+package:
+  exclude:
+    - "**"
+  include:
+    - ip/ip
+    - dns/dns
+    - bucket/bucket
+    - credentials/config
+    - credentials/oci_api_key.pem
+
+custom:
+  dotenv:
+    path: ../../credentials/oracle/oracle.env
+    logging: false
+    include:
+      - OracleTenancyId
+      - OracleConfigProfile
+      - OracleObjectStorageNamespace
+
+  OracleConfigPath: credentials/config
+
+  # DynamoDB tables:
+  DynamoDBTableAssets: Assets
+
+  # SNS topics:
+  SNSTopicAnalyzeIP: analyze-ip
+  SNSTopicAnalyzeIPARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicAnalyzeIP}
+  SNSTopicAnalyzeDomain: analyze-domain
+  SNSTopicAnalyzeDomainARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicAnalyzeDomain}
+  SNSTopicAnalyzeObjectStorage: analyze-object-storage
+  SNSTopicAnalyzeObjectStorageARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicAnalyzeObjectStorage}
+
+  SNSTopicCollectOracle: collect-oracle
+  SNSTopicCollectOracleARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicCollectOracle}
+
+provider:
+  name: aws
+  stage: ${opt:stage, 'dev'}
+  profile: ${opt:profile, 'default'}
+  region: ${opt:region, 'us-east-1'}
+
+  runtime: go1.x
+  memorySize: 128
+  timeout: 120
+
+  versionFunctions: false
+  logRetentionInDays: 14
+
+  environment:
+    OracleConfigPath: ${self:custom.OracleConfigPath}
+    OracleTenancyId: ${env:OracleTenancyId}
+    OracleConfigProfile: ${env:OracleConfigProfile}
+    OracleObjectStorageNamespace: ${env:OracleObjectStorageNamespace}
+
+    # DynamoDB tables:
+    DynamoDBTableAssets: ${self:custom.DynamoDBTableAssets}
+
+    # SNS topics:
+    SNSTopicAnalyzeDomainARN: ${self:custom.SNSTopicAnalyzeDomainARN}
+    SNSTopicAnalyzeIPARN: ${self:custom.SNSTopicAnalyzeIPARN}
+    SNSTopicAnalyzeObjectStorageARN: ${self:custom.SNSTopicAnalyzeObjectStorageARN}
+
+  iamRoleStatements:
+    # DynamoDB tables:
+    - Effect: Allow
+      Action:
+        - dynamodb:BatchWriteItem
+        - dynamodb:PutItem
+      Resource:
+        - Fn::Join:
+            - ':'
+            - - 'arn:aws:dynamodb'
+              - Ref: 'AWS::Region'
+              - Ref: 'AWS::AccountId'
+              - table/${self:custom.DynamoDBTableAssets}
+    # SNS topics:
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource:
+        - ${self:custom.SNSTopicAnalyzeDomainARN}
+        - ${self:custom.SNSTopicAnalyzeIPARN}
+        - ${self:custom.SNSTopicAnalyzeObjectStorageARN}
+
+functions:
+  OracleDNSCollector:
+    handler: dns/dns
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectOracleARN}
+          topicName: ${self:custom.SNSTopicCollectOracle}
+
+  OracleIPCollector:
+    handler: ip/ip
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectOracleARN}
+          topicName: ${self:custom.SNSTopicCollectOracle}
+
+  OracleObjectStorageCollector:
+    handler: bucket/bucket
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectOracleARN}
+          topicName: ${self:custom.SNSTopicCollectOracle}

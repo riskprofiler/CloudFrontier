@@ -1,0 +1,114 @@
+service: cloud-frontier-collector-azure
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-python-requirements
+
+package:
+  exclude:
+    - "**"
+  include:
+    - "!**"
+    - "*.py"
+
+custom:
+  pythonRequirements:
+    usePipenv: true
+
+  dotenv:
+    path: ../../credentials/azure.env
+    logging: false
+    include:
+      - AzureClientID
+      - AzureSecretKey
+      - AzureSubscriptionID
+      - AzureTenantID
+
+  # DynamoDB tables:
+  DynamoDBTableAssets: Assets
+
+  # SNS topics:
+  SNSTopicCollectAzure: collect-azure
+  SNSTopicCollectAzureARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicCollectAzure}
+
+  SNSTopicAnalyzeIP: analyze-ip
+  SNSTopicAnalyzeIPARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicAnalyzeIP}
+
+provider:
+  name: aws
+  stage: ${opt:stage, 'dev'}
+  profile: ${opt:profile, 'default'}
+  region: ${opt:region, 'us-east-1'}
+
+  runtime: python3.8
+  memorySize: 128
+  timeout: 60
+
+  versionFunctions: false
+  logRetentionInDays: 14
+
+  environment:
+    AzureClientID: ${env:AzureClientID}
+    AzureSecretKey: ${env:AzureSecretKey}
+    AzureSubscriptionID: ${env:AzureSubscriptionID}
+    AzureTenantID: ${env:AzureTenantID}
+
+    # DynamoDB tables:
+    DynamoDBTableAssets: ${self:custom.DynamoDBTableAssets}
+
+    # SNS topics:
+    SNSTopicAnalyzeIPARN: ${self:custom.SNSTopicAnalyzeIPARN}
+
+  iamRoleStatements:
+    # DynamoDB tables:
+    - Effect: Allow
+      Action:
+        - dynamodb:BatchWriteItem
+        - dynamodb:PutItem
+      Resource:
+        - Fn::Join:
+            - ':'
+            - - 'arn:aws:dynamodb'
+              - Ref: 'AWS::Region'
+              - Ref: 'AWS::AccountId'
+              - table/${self:custom.DynamoDBTableAssets}
+    # SNS topics:
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource:
+        - ${self:custom.SNSTopicAnalyzeIPARN}
+
+functions:
+  IPs:
+    handler: ips.handler
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectAzureARN}
+          topicName: ${self:custom.SNSTopicCollectAzure}
+
+  CDNs:
+    handler: cdns.handler
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectAzureARN}
+          topicName: ${self:custom.SNSTopicCollectAzure}
+
+  ObjectStorages:
+    handler: object_storages.handler
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectAzureARN}
+          topicName: ${self:custom.SNSTopicCollectAzure}

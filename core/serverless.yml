@@ -1,0 +1,199 @@
+service: cloud-frontier
+
+plugins:
+  - serverless-iam-roles-per-function
+
+custom:
+  serverless-iam-roles-per-function:
+    defaultInherit: true
+
+  ResourceDeletionPolicy: Delete  # or Retain
+
+  # DynamoDB tables:
+  DynamoDBTableAssets: Assets
+  DynamoDBTableCounts: Counts
+
+  # SNS topics:
+  SNSTopicCollectAssets: collect-assets
+
+  SNSTopicCollectAWS: collect-aws
+  SNSTopicCollectAzure: collect-azure
+  SNSTopicCollectDigitalOcean: collect-digitalocean
+  SNSTopicCollectGCP: collect-gcp
+  SNSTopicCollectOracle: collect-oracle
+
+  SNSTopicAnalyzeAPIEndpoint: analyze-api-endpoint
+  SNSTopicAnalyzeCDN: analyze-cdn
+  SNSTopicAnalyzeDataStore: analyze-data-store
+  SNSTopicAnalyzeDomain: analyze-domain
+  SNSTopicAnalyzeIP: analyze-ip
+  SNSTopicAnalyzeObjectStorage: analyze-object-storage
+
+provider:
+  name: aws
+  stage: ${opt:stage, 'dev'}
+  profile: ${opt:profile, 'default'}
+  region: ${opt:region, 'us-east-1'}
+
+  runtime: python3.8
+  memorySize: 128
+  timeout: 10
+
+  versionFunctions: false
+  logRetentionInDays: 14
+
+  environment:
+    # DynamoDB tables:
+    DynamoDBTableAssets: ${self:custom.DynamoDBTableAssets}
+    DynamoDBTableCounts: ${self:custom.DynamoDBTableCounts}
+
+  iamRoleStatements:
+    # SNS topics:
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource:
+        - !Ref SNSTopicCollectAWS
+        - !Ref SNSTopicCollectAzure
+        - !Ref SNSTopicCollectDigitalOcean
+        - !Ref SNSTopicCollectGCP
+        - !Ref SNSTopicCollectOracle
+    # DynamoDB tables:
+    - Effect: Allow
+      Action:
+        - dynamodb:BatchWriteItem
+        - dynamodb:DeleteItem
+        - dynamodb:Scan
+        - dynamodb:UpdateItem
+      Resource:
+        - !GetAtt DynamoDBTableAssets.Arn
+        - !GetAtt DynamoDBTableCounts.Arn
+
+package:
+  exclude:
+    - "**"
+  include:
+    - "!**"
+    - aggregators/*.py
+    - init/*.py
+
+functions:
+  InitializeCollection:
+    handler: init/collect.handler
+    environment:
+      SNSTopicCollectAWSARN: !Ref SNSTopicCollectAWS
+      SNSTopicCollectAzureARN: !Ref SNSTopicCollectAzure
+      SNSTopicCollectDigitalOceanARN: !Ref SNSTopicCollectDigitalOcean
+      SNSTopicCollectGCPARN: !Ref SNSTopicCollectGCP
+      SNSTopicCollectOracleARN: !Ref SNSTopicCollectOracle
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref SNSTopicCollectAWS
+    events:
+      - sns:
+          arn: !Ref SNSTopicCollectAssets
+          topicName: ${self:custom.SNSTopicCollectAssets}
+
+  AggregatorCounts:
+    handler: aggregators/counts.handler
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt DynamoDBTableAssets.StreamArn
+          parallelizationFactor: 2    # max is 10
+          maximumRetryAttempts: 1
+          batchSize: 1000
+          batchWindow: 10   # secs
+
+resources:
+  Resources:
+    # DynamoDB tables:
+    DynamoDBTableAssets:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: ${self:custom.ResourceDeletionPolicy}
+      Properties:
+        TableName: ${self:custom.DynamoDBTableAssets}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: type
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: type
+            KeyType: HASH   # partition key
+          - AttributeName: sk
+            KeyType: RANGE  # sort key
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+
+    DynamoDBTableCounts:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: ${self:custom.ResourceDeletionPolicy}
+      Properties:
+        TableName: ${self:custom.DynamoDBTableCounts}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: category
+            AttributeType: S
+          - AttributeName: value
+            AttributeType: S
+        KeySchema:
+          - AttributeName: category
+            KeyType: HASH   # partition key
+          - AttributeName: value
+            KeyType: RANGE  # sort key
+
+    # SNS topics:
+    SNSTopicCollectAssets:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectAssets}
+    SNSTopicCollectAWS:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectAWS}
+    SNSTopicCollectGCP:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectGCP}
+    SNSTopicCollectAzure:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectAzure}
+    SNSTopicCollectDigitalOcean:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectDigitalOcean}
+    SNSTopicCollectOracle:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectOracle}
+
+    SNSTopicAnalyzeAPIEndpoint:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicAnalyzeAPIEndpoint}
+    SNSTopicAnalyzeCDN:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicAnalyzeCDN}
+    SNSTopicAnalyzeDataStore:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicAnalyzeDataStore}
+    SNSTopicAnalyzeDomain:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicAnalyzeDomain}
+    SNSTopicAnalyzeIP:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicAnalyzeIP}
+    SNSTopicAnalyzeObjectStorage:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicAnalyzeObjectStorage}

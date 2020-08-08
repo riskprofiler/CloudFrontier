@@ -1,0 +1,17 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+"azure.mgmt.compute" = "*"
+"azure.mgmt.resource" = "*"
+"azure.mgmt.network" = "*"
+"azure.mgmt.storage" = "*"
+"azure.storage.blob" = "==2.1"
+"azure.mgmt.cdn" = "*"
+
+[requires]
+python_version = "3.8"

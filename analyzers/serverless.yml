@@ -1,0 +1,234 @@
+service: cloud-frontier-analyzers
+
+plugins:
+  - serverless-iam-roles-per-function
+  - serverless-pseudo-parameters
+  - serverless-python-requirements
+
+package:
+  exclude:
+    - "**"
+  include:
+    - "!**"
+    - process/*.py
+    - queue/*.py
+    - submit/*.py
+    - utils/*.py
+
+custom:
+  serverless-iam-roles-per-function:
+    defaultInherit: true
+
+  pythonRequirements:
+    usePipenv: true
+
+  ResourceDeletionPolicy: Delete  # or Retain
+
+  # API keys:
+  # TODO: TO BE REMOVED, USE ENV FILE INSTEAD.
+  APIKeyShodan: krP8DcL2yKMImLdhcjLuuYgJGBygOleW
+  APIKeyVirusTotal: 199b509f3dc3ecf14defdae9293700ae8319f3d45b2e2ac530240e8767b884e6
+
+  # DynamoDB tables:
+  DynamoDBTableAssets: Assets
+
+  # S3 buckets:
+  S3BucketAnalyzers: cloud-frontier-analyzers-#{AWS::AccountId}-${opt:stage, 'dev'}
+
+  # SNS topics:
+  SNSTopicProcessShodanData: process-shodan-data
+
+  SNSTopicAnalyzeDomain: analyze-domain
+  SNSTopicAnalyzeDomainARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicAnalyzeDomain}
+  SNSTopicAnalyzeIP: analyze-ip
+  SNSTopicAnalyzeIPARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicAnalyzeIP}
+
+  # SQS queues:
+  SQSQueueShodan: Shodan
+  SQSQueueVirusTotal: VirusTotal
+  SQSQueueObservatory: Observatory
+
+provider:
+  name: aws
+  stage: ${opt:stage, 'dev'}
+  profile: ${opt:profile, 'default'}
+  region: ${opt:region, 'us-east-1'}
+
+  runtime: python3.8
+  memorySize: 128
+  timeout: 10
+
+  versionFunctions: false
+  logRetentionInDays: 14
+
+  environment:
+    # DynamoDB tables:
+    DynamoDBTableAssets: ${self:custom.DynamoDBTableAssets}
+
+    # S3 buckets:
+    S3BucketAnalyzers: ${self:custom.S3BucketAnalyzers}
+
+    # SQS queues:
+    SQSQueueShodanURL: !Ref SQSQueueShodan
+    SQSQueueVirusTotalURL: !Ref SQSQueueVirusTotal
+    SQSQueueObservatoryURL: !Ref SQSQueueObservatory
+
+  iamRoleStatements:
+    # DynamoDB tables:
+    - Effect: Allow
+      Action:
+        - dynamodb:UpdateItem
+      Resource:
+        - Fn::Join:
+            - ':'
+            - - 'arn:aws:dynamodb'
+              - Ref: 'AWS::Region'
+              - Ref: 'AWS::AccountId'
+              - table/${self:custom.DynamoDBTableAssets}
+    # SQS queues:
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+      Resource:
+        - !GetAtt SQSQueueShodan.Arn
+        - !GetAtt SQSQueueObservatory.Arn
+        - !GetAtt SQSQueueVirusTotal.Arn
+
+functions:
+  QueueSubmitShodan:
+    handler: queue/shodan.handler
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicAnalyzeIPARN}
+          topicName: ${self:custom.SNSTopicAnalyzeIP}
+
+  SubmitShodan:
+    reservedConcurrency: 1
+    handler: submit/shodan.handler
+    environment:
+      APIKeyShodan: ${self:custom.APIKeyShodan}
+      SNSTopicProcessShodanDataARN: !Ref SNSTopicProcessShodanData
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - s3:PutObject
+        Resource:
+          - arn:aws:s3:::${self:custom.S3BucketAnalyzers}/*
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref SNSTopicProcessShodanData
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt: [SQSQueueShodan, Arn]
+          batchSize: 1
+
+  ProcessShodan:
+    handler: process/shodan.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - s3:GetObject
+        Resource:
+          - arn:aws:s3:::${self:custom.S3BucketAnalyzers}/*
+    events:
+      - sns:
+          arn: !Ref SNSTopicProcessShodanData
+          topicName: ${self:custom.SNSTopicProcessShodanData}
+
+  QueueSubmitVirusTotal:
+    handler: queue/virustotal.handler
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicAnalyzeDomainARN}
+          topicName: ${self:custom.SNSTopicAnalyzeDomain}
+      - sns:
+          arn: ${self:custom.SNSTopicAnalyzeIPARN}
+          topicName: ${self:custom.SNSTopicAnalyzeIP}
+
+  SubmitVirusTotal:
+    timeout: 60
+    reservedConcurrency: 1
+    handler: submit/virustotal.handler
+    environment:
+      APIKeyVirusTotal: ${self:custom.APIKeyVirusTotal}
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt: [SQSQueueVirusTotal, Arn]
+          batchSize: 1
+
+  QueueSubmitObservatory:
+    handler: queue/observatory.handler
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicAnalyzeDomainARN}
+          topicName: ${self:custom.SNSTopicAnalyzeDomain}
+
+  SubmitObservatory:
+    reservedConcurrency: 1
+    handler: submit/mozilla_observatory.handler
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt: [SQSQueueObservatory, Arn]
+          batchSize: 1
+
+resources:
+  Resources:
+    # S3 buckets:
+    S3BucketAnalyzers:
+      Type: AWS::S3::Bucket
+      DeletionPolicy: ${self:custom.ResourceDeletionPolicy}
+      Properties:
+        BucketName: ${self:custom.S3BucketAnalyzers}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        LifecycleConfiguration:
+          Rules:
+            - Status: Enabled
+              ExpirationInDays: 1
+
+    # SNS topics:
+    SNSTopicProcessShodanData:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicProcessShodanData}
+
+    # SQS queues:
+    SQSQueueShodan:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.SQSQueueShodan}
+
+    SQSQueueVirusTotal:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.SQSQueueVirusTotal}
+        VisibilityTimeout: 120
+
+    SQSQueueObservatory:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.SQSQueueObservatory}

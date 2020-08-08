@@ -1,0 +1,97 @@
+service: cloud-frontier-frontend
+
+plugins:
+  - serverless-export-outputs
+  - serverless-pseudo-parameters
+  - serverless-s3-sync
+
+custom:
+  S3BucketFrontend: cloud-frontier-frontend-${opt:stage, 'dev'}
+
+  s3Sync:
+    - bucketName: ${self:custom.S3BucketFrontend}
+      localDir: dist
+
+  exportOutputs:
+    include:
+      - FrontendDomain
+    output:
+      file: temp-frontend-output
+      format: toml
+
+provider:
+  name: aws
+  stage: ${opt:stage, 'dev'}
+  profile: ${opt:profile, 'default'}
+  region: ${opt:region, 'us-east-1'}
+
+resources:
+  Resources:
+    S3BucketFrontend:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.S3BucketFrontend}
+
+    CloudFrontOriginAccessIdentity:
+      Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+      Properties:
+        CloudFrontOriginAccessIdentityConfig:
+          Comment: !Ref S3BucketFrontend
+
+    ReadPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref S3BucketFrontend
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: arn:aws:s3:::${self:custom.S3BucketFrontend}/*
+              Principal:
+                CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
+
+    CloudFrontDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Enabled: true
+          PriceClass: 'PriceClass_All'
+          HttpVersion: http2
+          DefaultRootObject: 'index.html'
+          CustomErrorResponses:
+            - ErrorCode: 403
+              ResponseCode: 404
+              ResponsePagePath: '/error.html'
+          Origins:
+            - DomainName: !GetAtt S3BucketFrontend.DomainName
+              Id: s3origin
+              S3OriginConfig:
+                OriginAccessIdentity:
+                  Fn::Join:
+                    - '/'
+                    - - origin-access-identity
+                      - cloudfront
+                      - !Ref CloudFrontOriginAccessIdentity
+          DefaultCacheBehavior:
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            CachedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            Compress: true
+            DefaultTTL: 3600  # seconds
+            ForwardedValues:
+              Cookies:
+                Forward: none
+              QueryString: false
+            MaxTTL: 86400   # seconds
+            MinTTL: 60  # seconds
+            TargetOriginId: s3origin
+            ViewerProtocolPolicy: 'allow-all'
+
+  Outputs:
+    FrontendDomain:
+      Value: !GetAtt CloudFrontDistribution.DomainName

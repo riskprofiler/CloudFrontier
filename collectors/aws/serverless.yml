@@ -1,0 +1,406 @@
+service: cloud-frontier-collector-aws
+
+plugins:
+  - serverless-iam-roles-per-function
+  - serverless-dotenv-plugin
+
+package:
+  exclude:
+    - "**"
+  include:
+    - "!**"
+    - "*.py"
+    - utils/*.py
+
+custom:
+  serverless-iam-roles-per-function:
+    defaultInherit: true
+  dotenv:
+    path: ../../credentials/aws.env
+    logging: false
+    include:
+      - AWSIAMRoleARN
+
+  # DynamoDB tables:
+  DynamoDBTableAssets: Assets
+
+  # SNS topics:
+  SNSTopicAnalyzeIP: analyze-ip
+  SNSTopicAnalyzeIPARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicAnalyzeIP}
+  SNSTopicAnalyzeDomain: analyze-domain
+  SNSTopicAnalyzeDomainARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicAnalyzeDomain}
+  SNSTopicAnalyzeObjectStorage: analyze-object-storage
+  SNSTopicAnalyzeObjectStorageARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicAnalyzeObjectStorage}
+  SNSTopicAnalyzeDataStore: analyze-data-store
+  SNSTopicAnalyzeDataStoreARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicAnalyzeDataStore}
+  SNSTopicAnalyzeAPIEndpoint: analyze-api-endpoint
+  SNSTopicAnalyzeAPIEndpointARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicAnalyzeAPIEndpoint}
+  SNSTopicAnalyzeCDN: analyze-cdn
+  SNSTopicAnalyzeCDNARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicAnalyzeCDN}
+
+  SNSTopicCollectAWS: collect-aws
+  SNSTopicCollectAWSARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicCollectAWS}
+
+  SNSTopicCollectAWSAPIGateway: collect-aws-api-gateway
+  SNSTopicCollectAWSEC2: collect-aws-ec2
+  SNSTopicCollectAWSEKS: collect-aws-eks
+  SNSTopicCollectAWSElasticBeanstalk: collect-aws-elastic-beanstalk
+  SNSTopicCollectAWSElasticache: collect-aws-elasticache
+  SNSTopicCollectAWSElasticsearch: collect-aws-elasticsearch
+  SNSTopicCollectAWSELB: collect-aws-elb
+  SNSTopicCollectAWSRDS: collect-aws-rds
+
+provider:
+  name: aws
+  stage: ${opt:stage, 'dev'}
+  profile: ${opt:profile, 'default'}
+  region: ${opt:region, 'us-east-1'}
+
+  runtime: python3.8
+  memorySize: 128
+  timeout: 10
+
+  versionFunctions: false
+  logRetentionInDays: 14
+
+  environment:
+    AWSIAMRoleARN: ${env:AWSIAMRoleARN}
+
+    # DynamoDB tables:
+    DynamoDBTableAssets: ${self:custom.DynamoDBTableAssets}
+
+    # SNS topics:
+    SNSTopicAnalyzeAPIEndpointARN: ${self:custom.SNSTopicAnalyzeAPIEndpointARN}
+    SNSTopicAnalyzeCDNARN: ${self:custom.SNSTopicAnalyzeCDNARN}
+    SNSTopicAnalyzeDataStoreARN: ${self:custom.SNSTopicAnalyzeDataStoreARN}
+    SNSTopicAnalyzeDomainARN: ${self:custom.SNSTopicAnalyzeDomainARN}
+    SNSTopicAnalyzeIPARN: ${self:custom.SNSTopicAnalyzeIPARN}
+    SNSTopicAnalyzeObjectStorageARN: ${self:custom.SNSTopicAnalyzeObjectStorageARN}
+
+  iamRoleStatements:
+    # STS role for AWS collectors:
+    - Effect: Allow
+      Action:
+        - sts:AssumeRole
+      Resource:
+        - ${env:AWSIAMRoleARN}
+
+    # DynamoDB tables:
+    - Effect: Allow
+      Action:
+        - dynamodb:BatchWriteItem
+        - dynamodb:PutItem
+      Resource:
+        - Fn::Join:
+            - ':'
+            - - 'arn:aws:dynamodb'
+              - Ref: 'AWS::Region'
+              - Ref: 'AWS::AccountId'
+              - table/${self:custom.DynamoDBTableAssets}
+
+    # SNS topics:
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource:
+        - ${self:custom.SNSTopicAnalyzeAPIEndpointARN}
+        - ${self:custom.SNSTopicAnalyzeCDNARN}
+        - ${self:custom.SNSTopicAnalyzeDataStoreARN}
+        - ${self:custom.SNSTopicAnalyzeDomainARN}
+        - ${self:custom.SNSTopicAnalyzeIPARN}
+        - ${self:custom.SNSTopicAnalyzeObjectStorageARN}
+
+functions:
+  APIGatewayFanOut:
+    handler: api_gateway.handler_fan_out
+    environment:
+      SNSTopicCollectAWSAPIGatewayARN: !Ref SNSTopicCollectAWSAPIGateway
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref SNSTopicCollectAWSAPIGateway
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectAWSARN}
+          topicName: ${self:custom.SNSTopicCollectAWS}
+
+  APIGatewayRegional:
+    handler: api_gateway.handler_regional
+    environment:
+      SNSTopicAnalyzeAPIEndpointARN: ${self:custom.SNSTopicAnalyzeAPIEndpointARN}
+      SNSTopicAnalyzeDomainARN: ${self:custom.SNSTopicAnalyzeDomainARN}
+    events:
+      - sns:
+          arn: !Ref SNSTopicCollectAWSAPIGateway
+          topicName: ${self:custom.SNSTopicCollectAWSAPIGateway}
+
+  EC2FanOut:
+    handler: ec2.handler_fan_out
+    environment:
+      SNSTopicCollectAWSEC2ARN: !Ref SNSTopicCollectAWSEC2
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref SNSTopicCollectAWSEC2
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectAWSARN}
+          topicName: ${self:custom.SNSTopicCollectAWS}
+
+  EC2Regional:
+    handler: ec2.handler_regional
+    environment:
+      SNSTopicAnalyzeIPARN: ${self:custom.SNSTopicAnalyzeIPARN}
+      SNSTopicAnalyzeDomainARN: ${self:custom.SNSTopicAnalyzeDomainARN}
+    events:
+      - sns:
+          arn: !Ref SNSTopicCollectAWSEC2
+          topicName: ${self:custom.SNSTopicCollectAWSEC2}
+
+  EKSFanOut:
+    handler: eks.handler_fan_out
+    environment:
+      SNSTopicCollectAWSEKSARN: !Ref SNSTopicCollectAWSEKS
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref SNSTopicCollectAWSEKS
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectAWSARN}
+          topicName: ${self:custom.SNSTopicCollectAWS}
+
+  EKSRegional:
+    handler: eks.handler_regional
+    environment:
+      SNSTopicAnalyzeDomainARN: ${self:custom.SNSTopicAnalyzeDomainARN}
+    events:
+      - sns:
+          arn: !Ref SNSTopicCollectAWSEKS
+          topicName: ${self:custom.SNSTopicCollectAWSEKS}
+
+  EBFanOut:
+    handler: elastic_beanstalk.handler_fan_out
+    environment:
+      SNSTopicCollectAWSElasticBeanstalkARN: !Ref SNSTopicCollectAWSElasticBeanstalk
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref SNSTopicCollectAWSElasticBeanstalk
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectAWSARN}
+          topicName: ${self:custom.SNSTopicCollectAWS}
+
+  EBRegional:
+    handler: elastic_beanstalk.handler_regional
+    environment:
+      SNSTopicAnalyzeDomainARN: ${self:custom.SNSTopicAnalyzeDomainARN}
+    events:
+      - sns:
+          arn: !Ref SNSTopicCollectAWSElasticBeanstalk
+          topicName: ${self:custom.SNSTopicCollectAWSElasticBeanstalk}
+
+  ElasticacheFanOut:
+    handler: elasticache.handler_fan_out
+    environment:
+      SNSTopicCollectAWSElasticacheARN: !Ref SNSTopicCollectAWSElasticache
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref SNSTopicCollectAWSElasticache
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectAWSARN}
+          topicName: ${self:custom.SNSTopicCollectAWS}
+
+  ElasticacheRegional:
+    handler: elasticache.handler_regional
+    environment:
+      SNSTopicAnalyzeDataStoreARN: ${self:custom.SNSTopicAnalyzeDataStoreARN}
+    events:
+      - sns:
+          arn: !Ref SNSTopicCollectAWSElasticache
+          topicName: ${self:custom.SNSTopicCollectAWSElasticache}
+
+  ElasticsearchFanOut:
+    handler: elasticsearch.handler_fan_out
+    environment:
+      SNSTopicCollectAWSElasticsearchARN: !Ref SNSTopicCollectAWSElasticsearch
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref SNSTopicCollectAWSElasticsearch
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectAWSARN}
+          topicName: ${self:custom.SNSTopicCollectAWS}
+
+  ElasticsearchRegional:
+    handler: elasticsearch.handler_regional
+    environment:
+      SNSTopicAnalyzeDomainARN: ${self:custom.SNSTopicAnalyzeDomainARN}
+    events:
+      - sns:
+          arn: !Ref SNSTopicCollectAWSElasticsearch
+          topicName: ${self:custom.SNSTopicCollectAWSElasticsearch}
+
+  ELBFanOut:
+    handler: elb.handler_fan_out
+    environment:
+      SNSTopicCollectAWSELBARN: !Ref SNSTopicCollectAWSELB
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref SNSTopicCollectAWSELB
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectAWSARN}
+          topicName: ${self:custom.SNSTopicCollectAWS}
+
+  ELBRegional:
+    handler: elb.handler_regional
+    environment:
+      SNSTopicAnalyzeDomainARN: ${self:custom.SNSTopicAnalyzeDomainARN}
+    events:
+      - sns:
+          arn: !Ref SNSTopicCollectAWSELB
+          topicName: ${self:custom.SNSTopicCollectAWSELB}
+
+  ELBv2Regional:
+    handler: elb.handler_v2_regional
+    environment:
+      SNSTopicAnalyzeIPARN: ${self:custom.SNSTopicAnalyzeIPARN}
+      SNSTopicAnalyzeDomainARN: ${self:custom.SNSTopicAnalyzeDomainARN}
+    events:
+      - sns:
+          arn: !Ref SNSTopicCollectAWSELB
+          topicName: ${self:custom.SNSTopicCollectAWSELB}
+
+  RDSFanOut:
+    handler: rds.handler_fan_out
+    environment:
+      SNSTopicCollectAWSRDSARN: !Ref SNSTopicCollectAWSRDS
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - !Ref SNSTopicCollectAWSRDS
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectAWSARN}
+          topicName: ${self:custom.SNSTopicCollectAWS}
+
+  RDSRegional:
+    handler: rds.handler_regional
+    environment:
+      SNSTopicAnalyzeDataStoreARN: ${self:custom.SNSTopicAnalyzeDataStoreARN}
+      SNSTopicAnalyzeDomainARN: ${self:custom.SNSTopicAnalyzeDomainARN}
+    events:
+      - sns:
+          arn: !Ref SNSTopicCollectAWSRDS
+          topicName: ${self:custom.SNSTopicCollectAWSRDS}
+
+  S3Global:
+    timeout: 300  # 5 minutes
+    handler: s3.handler_global
+    environment:
+      SNSTopicAnalyzeDomainARN: ${self:custom.SNSTopicAnalyzeDomainARN}
+      SNSTopicAnalyzeObjectStorageARN: ${self:custom.SNSTopicAnalyzeObjectStorageARN}
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicCollectAWSARN}
+          topicName: ${self:custom.SNSTopicCollectAWS}
+
+resources:
+  Resources:
+    # SNS topics:
+    SNSTopicCollectAWSAPIGateway:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectAWSAPIGateway}
+    SNSTopicCollectAWSEC2:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectAWSEC2}
+    SNSTopicCollectAWSEKS:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectAWSEKS}
+    SNSTopicCollectAWSElasticBeanstalk:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectAWSElasticBeanstalk}
+    SNSTopicCollectAWSElasticache:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectAWSElasticache}
+    SNSTopicCollectAWSElasticsearch:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectAWSElasticsearch}
+    SNSTopicCollectAWSELB:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectAWSELB}
+    SNSTopicCollectAWSRDS:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.SNSTopicCollectAWSRDS}

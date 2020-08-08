@@ -1,0 +1,175 @@
+service: cloud-frontier-api
+
+plugins:
+  - serverless-export-outputs
+  - serverless-iam-roles-per-function
+
+package:
+  exclude:
+    - "**"
+  include:
+    - "!**"
+    - assets/*.py
+    - dashboard/*.py
+    - utils/*.py
+
+custom:
+  serverless-iam-roles-per-function:
+    defaultInherit: true
+
+  exportOutputs:
+    include:
+      - ServiceEndpoint
+    output:
+      file: ../frontend/src/config.json
+      format: json
+
+  APIGatewayRestApiName: cloud-frontier
+
+  # DynamoDB tables:
+  DynamoDBTableAssets: Assets
+  DynamoDBTableCounts: Counts
+
+  # SNS topics:
+  SNSTopicCollectAssets: collect-assets
+  SNSTopicCollectAssetsARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:sns'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - ${self:custom.SNSTopicCollectAssets}
+
+provider:
+  name: aws
+  stage: ${opt:stage, 'dev'}
+  profile: ${opt:profile, 'default'}
+  region: ${opt:region, 'us-east-1'}
+
+  runtime: python3.8
+  memorySize: 128
+  timeout: 10
+
+  versionFunctions: false
+  logRetentionInDays: 14
+
+  environment:
+    DynamoDBTableAssets: ${self:custom.DynamoDBTableAssets}
+    DynamoDBTableCounts: ${self:custom.DynamoDBTableCounts}
+
+  iamRoleStatements:
+    # DynamoDB tables:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:Query
+        - dynamodb:Scan
+      Resource:
+        - Fn::Join:
+            - ':'
+            - - 'arn:aws:dynamodb'
+              - Ref: 'AWS::Region'
+              - Ref: 'AWS::AccountId'
+              - table/${self:custom.DynamoDBTableAssets}
+        - Fn::Join:
+            - ':'
+            - - 'arn:aws:dynamodb'
+              - Ref: 'AWS::Region'
+              - Ref: 'AWS::AccountId'
+              - table/${self:custom.DynamoDBTableCounts}
+
+functions:
+  APIAssetsCollect:
+    handler: assets/collect.handler
+    environment:
+      SNSTopicCollectAssetsARN: ${self:custom.SNSTopicCollectAssetsARN}
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - ${self:custom.SNSTopicCollectAssetsARN}
+    events:
+      - http:
+          path: start
+          method: GET
+          cors: true
+
+  APIAssetsList:
+    handler: assets/handlers.list_assets
+    events:
+      - http:
+          path: assets
+          method: GET
+          cors: true
+
+  APIDashboardSummary:
+    handler: dashboard/summary.handler
+    events:
+      - http:
+          path: dashboard/dashboard
+          method: GET
+          cors: true
+
+  APIDashboardIPGeoMap:
+    handler: dashboard/geo_ip.handler
+    events:
+      - http:
+          path: dashboard/ip-geo
+          method: GET
+          cors: true
+
+  APIDashboardCommonPorts:
+    handler: dashboard/common_ports.handler
+    events:
+      - http:
+          path: dashboard/common-ports
+          method: GET
+          cors: true
+
+  APIDashboardAdminPorts:
+    handler: dashboard/admin_ports.handler
+    events:
+      - http:
+          path: dashboard/administrative-ports
+          method: GET
+          cors: true
+
+  APIDashboardVulnerabilities:
+    handler: dashboard/vulnerabilities.handler
+    events:
+      - http:
+          path: dashboard/vulnerabilities
+          method: GET
+          cors: true
+
+resources:
+  Resources:
+    # API Gateway REST API:
+    ApiGatewayRestApi:
+      Type: AWS::ApiGateway::RestApi
+      Properties:
+        Name: ${self:custom.APIGatewayRestApiName}
+
+    # API Gateway default responses:
+    GatewayResponseDefault4XX:
+      Type: 'AWS::ApiGateway::GatewayResponse'
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: 'ApiGatewayRestApi'
+
+    GatewayResponseDefault5XX:
+      Type: 'AWS::ApiGateway::GatewayResponse'
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: 'ApiGatewayRestApi'

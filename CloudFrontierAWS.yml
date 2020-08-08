@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: A CloudFormation template that creates an IAM role with read-only policies, used by Cloud Frontier's AWS asset collectors.
+Parameters:
+  DeploymentAccountID:
+    Type: String
+    Description: The AWS account ID to which Cloud Frontier will be deployed to. Eg. 123456789012.
+Resources:
+  CloudFrontierRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS: !Sub "arn:aws:iam::${DeploymentAccountID}:root"
+          Action: sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/ReadOnlyAccess
+      Policies:
+      - PolicyName: DenyDataAccessPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Deny
+            Action:
+              - cloudformation:GetTemplate
+              - dynamodb:GetItem
+              - dynamodb:BatchGetItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - ec2:GetConsoleOutput
+              - ec2:GetConsoleScreenshot
+              - ecr:BatchGetImage
+              - ecr:GetAuthorizationToken
+              - ecr:GetDownloadUrlForLayer
+              - kinesis:Get*
+              - lambda:GetFunction
+              - logs:GetLogEvents
+              - s3:GetObject
+              - sdb:Select*
+              - sqs:ReceiveMessage
+            Resource:
+              - "*"
+Outputs:
+  CloudFrontierRoleARN:
+    Description: ARN of the created role.
+    Value: !GetAtt CloudFrontierRole.Arn

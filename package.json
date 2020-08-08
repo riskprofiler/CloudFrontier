@@ -1,0 +1,14 @@
+{
+  "name": "cloud-frontier",
+  "description": "",
+  "version": "0.1.0",
+  "devDependencies": {
+    "serverless": "^1.62.0",
+    "serverless-dotenv-plugin": "^3.0.0",
+    "serverless-export-outputs": "^1.0.2",
+    "serverless-iam-roles-per-function": "^2.0.2",
+    "serverless-pseudo-parameters": "^2.5.0",
+    "serverless-python-requirements": "^5.0.1",
+    "serverless-s3-sync": "^1.14.4"
+  }
+}
