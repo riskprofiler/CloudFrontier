@@ -229,8 +229,8 @@ the end.
 - Roma Negi
   <a href="https://github.com/negiroma">![GitHub followers](https://img.shields.io/github/followers/negiroma?style=social)</a>
   [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5)](https://linkedin.com/in/roma-negi-63508314b)
-- Gargi Chakroborty
-   <a href="https://github.com/setuparimi">![GitHub followers](https://img.shields.io/github/followers/c-gargi?style=social)</a>
+- Gargi Chakraborty
+   <a href="https://github.com/c-gargi">![GitHub followers](https://img.shields.io/github/followers/c-gargi?style=social)</a>
     [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5)](https://linkedin.com/in/cgargi)
 - Shivam Kumar
   <a href="https://github.com/shivamethicalhat">![GitHub followers](https://img.shields.io/github/followers/shivamethicalhat?style=social)</a>
