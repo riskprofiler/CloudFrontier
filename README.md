@@ -202,7 +202,21 @@ the end.
 
 ## ✨ Components
 
-![cloudfrontier-components](https://github.com/riskprofiler/Nights-Watch/blob/master/component-cf.png)
+![cloudfrontier-components](screenshot/component-cf.png)
+
+
+## 📸 ScreenShots
+  - **landing Page**
+![cloudfrontier-landing-page](screenshot/landing-page.png)
+
+  - **Dashboard**
+![cloudfrontier-dashboard](screenshot/dashboard.png)
+
+  - **Asset Inventory**
+![cloudfrontier-assets](screenshot/assets.png)
+
+  - **Dark Mode UI**
+![cloudfrontier-dark-mode](screenshot/darkmode.png)
 
 ## 🛣️ Roadmap
 
