@@ -204,7 +204,7 @@ the end.
 
 ## ✨ Components
 
-![cloudfrontier-components](screenshot/component-cf.png)
+![cloudfrontier-components](screenshot/components.png)
 
 
 ## 📸 ScreenShots
