@@ -11,8 +11,6 @@
 
 Currently supports AWS, GCP, Azure, DigitalOcean and Oracle Cloud.
 
-[![Product Hunt](https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=230417&theme=dark)](https://www.producthunt.com/posts/cloudfrontier?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-cloudfrontier)
-
 ### Contents
 
 * [Setting up](#%EF%B8%8F-setting-up)
