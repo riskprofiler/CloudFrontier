@@ -60,8 +60,8 @@ resources:
           DefaultRootObject: 'index.html'
           CustomErrorResponses:
             - ErrorCode: 403
-              ResponseCode: 404
-              ResponsePagePath: '/error.html'
+              ResponseCode: 200
+              ResponsePagePath: '/index.html'
           Origins:
             - DomainName: !GetAtt S3BucketFrontend.DomainName
               Id: s3origin
