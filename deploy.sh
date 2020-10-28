@@ -10,7 +10,7 @@ blue_bold='\033[1;34m'
 magenta='\033[0;35m'
 reset='\033[0m'     # reset style
 
-deploy_command="serverless deploy $@ --verbose"
+deploy_command="npx serverless deploy $@ --verbose"
 
 printf "[1/4] ${blue}Deploying the core stack...${reset}\n"
 (cd core && $deploy_command)
