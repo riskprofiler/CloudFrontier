@@ -4,6 +4,7 @@ plugins:
   - serverless-iam-roles-per-function
   - serverless-pseudo-parameters
   - serverless-python-requirements
+  - serverless-dotenv-plugin
 
 package:
   exclude:
@@ -19,15 +20,21 @@ custom:
   serverless-iam-roles-per-function:
     defaultInherit: true
 
+  dotenv:
+    path: ../credentials/analyzers.env
+    logging: false
+    include:
+      - APIKeyShodan
+      - APIKeyVirusTotal
+
   pythonRequirements:
     usePipenv: true
 
   ResourceDeletionPolicy: Delete  # or Retain
 
   # API keys:
-  # TODO: TO BE REMOVED, USE ENV FILE INSTEAD.
-  APIKeyShodan: krP8DcL2yKMImLdhcjLuuYgJGBygOleW
-  APIKeyVirusTotal: 199b509f3dc3ecf14defdae9293700ae8319f3d45b2e2ac530240e8767b884e6
+  APIKeyShodan: ${env:APIKeyShodan}
+  APIKeyVirusTotal: ${env:APIKeyVirusTotal}
 
   # DynamoDB tables:
   DynamoDBTableAssets: Assets
