@@ -1,14 +1,19 @@
 {
   "name": "cloud-frontier",
-  "description": "",
-  "version": "0.1.0",
+  "description": "Monitor the internet attack surface of various public cloud environments",
+  "version": "1.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/riskprofiler/CloudFrontier.git"
+  },
+  "license": "Apache-2.0",
   "devDependencies": {
-    "serverless": "^1.62.0",
-    "serverless-dotenv-plugin": "^3.0.0",
+    "serverless": "^1.83.0",
+    "serverless-dotenv-plugin": "^3.1.0",
     "serverless-export-outputs": "^1.0.2",
     "serverless-iam-roles-per-function": "^2.0.2",
     "serverless-pseudo-parameters": "^2.5.0",
-    "serverless-python-requirements": "^5.0.1",
-    "serverless-s3-sync": "^1.14.4"
+    "serverless-python-requirements": "^5.1.0",
+    "serverless-s3-sync": "^1.15.0"
   }
 }
