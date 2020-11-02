@@ -10,20 +10,13 @@ blue_bold='\033[1;34m'
 magenta='\033[0;35m'
 reset='\033[0m'     # reset style
 
-npx -v >&/dev/null
-npx_return_code=$?
-
-serverless -v >&/dev/null
-serverless_return_code=$?
-
-if [ $npx_return_code -eq 0 ]
-then
-	deploy_command="npx serverless deploy $@ --verbose"
-elif [ $serverless_return_code -eq 0 ]
-	deploy_command="serverless deploy $@ --verbose"
-else
-	printf "${red}Serverless is not installed. Please run npm install --save-dev first and try again.${reset}\n"
-	exit 1
+deploy_command="serverless deploy $@ --verbose"
+if command -v npx &> /dev/null; then
+    deploy_command="npx $deploy_command"
+elif ! command -v serverless &> /dev/null; then
+    printf "${red}Serverless is not installed.${reset}\n\n"
+    printf "Please run ${blue_bold}npm install --save-dev${reset} first and try again.\n"
+    exit 1
 fi
 
 printf "[1/4] ${blue}Deploying the core stack...${reset}\n"
@@ -34,6 +27,7 @@ printf "[2/4] ${blue}Deploying collectors and analyzers...${reset}\n"
 num_collectors_being_deployed=0
 # Deploy the stacks which have an environment file:
 if [[ -f credentials/analyzers.env ]]; then
+    printf "${blue}Deploying the analyzers...${reset}\n"
     (cd analyzers && $deploy_command)&
 else
     printf "[x] ${red}Unable to deploy the analyzers - environment file does not exist${reset}\n"
