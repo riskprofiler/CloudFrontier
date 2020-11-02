@@ -10,7 +10,21 @@ blue_bold='\033[1;34m'
 magenta='\033[0;35m'
 reset='\033[0m'     # reset style
 
-deploy_command="npx serverless deploy $@ --verbose"
+npx -v >&/dev/null
+npx_return_code=$?
+
+serverless -v >&/dev/null
+serverless_return_code=$?
+
+if [ $npx_return_code -eq 0 ]
+then
+	deploy_command="npx serverless deploy $@ --verbose"
+elif [ $serverless_return_code -eq 0 ]
+	deploy_command="serverless deploy $@ --verbose"
+else
+	printf "${red}Serverless is not installed. Please run npm install --save-dev first and try again.${reset}\n"
+	exit 1
+fi
 
 printf "[1/4] ${blue}Deploying the core stack...${reset}\n"
 (cd core && $deploy_command)
