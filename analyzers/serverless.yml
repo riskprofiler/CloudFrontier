@@ -13,7 +13,11 @@ package:
     - "!**"
     - process/*.py
     - queue/*.py
+    - queue/nmapqueue
     - submit/*.py
+    - submit/nmap-dir/**
+    - submit/nmap
+    - submit/nmapsubmit
     - utils/*.py
 
 custom:
@@ -66,6 +70,7 @@ custom:
   SQSQueueShodan: Shodan
   SQSQueueVirusTotal: VirusTotal
   SQSQueueObservatory: Observatory
+  SQSQueueNmap: Nmap
 
 provider:
   name: aws
@@ -73,7 +78,6 @@ provider:
   profile: ${opt:profile, 'default'}
   region: ${opt:region, 'us-east-1'}
 
-  runtime: python3.8
   memorySize: 128
   timeout: 10
 
@@ -91,6 +95,7 @@ provider:
     SQSQueueShodanURL: !Ref SQSQueueShodan
     SQSQueueVirusTotalURL: !Ref SQSQueueVirusTotal
     SQSQueueObservatoryURL: !Ref SQSQueueObservatory
+    SQSQueueNmapURL: !Ref SQSQueueNmap
 
   iamRoleStatements:
     # DynamoDB tables:
@@ -112,9 +117,11 @@ provider:
         - !GetAtt SQSQueueShodan.Arn
         - !GetAtt SQSQueueObservatory.Arn
         - !GetAtt SQSQueueVirusTotal.Arn
+        - !GetAtt SQSQueueNmap.Arn
 
 functions:
   QueueSubmitShodan:
+    runtime: python3.8
     handler: queue/shodan.handler
     events:
       - sns:
@@ -122,6 +129,7 @@ functions:
           topicName: ${self:custom.SNSTopicAnalyzeIP}
 
   SubmitShodan:
+    runtime: python3.8
     reservedConcurrency: 1
     handler: submit/shodan.handler
     environment:
@@ -145,6 +153,7 @@ functions:
           batchSize: 1
 
   ProcessShodan:
+    runtime: python3.8
     handler: process/shodan.handler
     iamRoleStatements:
       - Effect: Allow
@@ -158,6 +167,7 @@ functions:
           topicName: ${self:custom.SNSTopicProcessShodanData}
 
   QueueSubmitVirusTotal:
+    runtime: python3.8
     handler: queue/virustotal.handler
     events:
       - sns:
@@ -168,6 +178,7 @@ functions:
           topicName: ${self:custom.SNSTopicAnalyzeIP}
 
   SubmitVirusTotal:
+    runtime: python3.8
     timeout: 60
     reservedConcurrency: 1
     handler: submit/virustotal.handler
@@ -180,6 +191,7 @@ functions:
           batchSize: 1
 
   QueueSubmitObservatory:
+    runtime: python3.8
     handler: queue/observatory.handler
     events:
       - sns:
@@ -187,12 +199,36 @@ functions:
           topicName: ${self:custom.SNSTopicAnalyzeDomain}
 
   SubmitObservatory:
+    runtime: python3.8
     reservedConcurrency: 1
     handler: submit/mozilla_observatory.handler
     events:
       - sqs:
           arn:
             Fn::GetAtt: [SQSQueueObservatory, Arn]
+          batchSize: 1
+
+  QueueSubmitNmap:
+    runtime: go1.x
+    handler: queue/nmapqueue
+    events:
+      - sns:
+          arn: ${self:custom.SNSTopicAnalyzeDomainARN}
+          topicName: ${self:custom.SNSTopicAnalyzeDomain}
+      - sns:
+          arn: ${self:custom.SNSTopicAnalyzeIPARN}
+          topicName: ${self:custom.SNSTopicAnalyzeIP}
+
+  SubmitNmap:
+    runtime: go1.x
+    handler: submit/nmapsubmit
+    reservedConcurrency: 1
+    environment:
+      NMAPDIR: "/var/task/submit/nmap-dir" # Hardcoding the location of the Nmap directory
+    events:
+      - sqs:
+          arn:
+            Fn:GetAtt: [SQSQueueNmap, Arn]
           batchSize: 1
 
 resources:
@@ -203,7 +239,7 @@ resources:
       DeletionPolicy: ${self:custom.ResourceDeletionPolicy}
       Properties:
         BucketName: ${self:custom.S3BucketAnalyzers}
-        PublicAccessBlockConfiguration:
+        PublicAccessBlockConfiguragtion:
           BlockPublicAcls: true
           BlockPublicPolicy: true
           IgnorePublicAcls: true
