@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	// "github.com/aws/aws-sdk-go/service/sqs"
 )
 
@@ -31,7 +32,7 @@ func initial() {
 	dynamoDBClient = dynamodb.New(sess)
 }
 
-func scan(domainOrIP string) *nmap.Run {
+func scan(domainOrIP string) (*nmap.Run, error) {
 	scanner, err := nmap.NewScanner(
 		nmap.WithTargets(domainOrIP),
 		nmap.WithMostCommonPorts(100),
@@ -39,15 +40,14 @@ func scan(domainOrIP string) *nmap.Run {
 		nmap.WithBinaryPath("/var/task/submit/nmap"),
 	)
 	if err != nil {
-		log.Println("Error creating scanner: ", err)
+		return nil, err
 	}
 	results, _, err := scanner.Run()
 	if err != nil {
-		log.Println("Error completing the scan: ", err)
-	} else {
-		log.Println("Successfully completed the scan...")
+		return nil, err
 	}
-	return results
+	log.Println("Successfully completed the scan...")
+	return results, nil
 }
 
 func handler(ctx context.Context, snsEvent events.SNSEvent) {
@@ -57,11 +57,13 @@ func handler(ctx context.Context, snsEvent events.SNSEvent) {
 	assetType := tableContents["type"]
 	domainOrIP := tableContents[assetType]
 	fmt.Println("Domain or IP: ", domainOrIP)
-	results, err := json.Marshal(scan(domainOrIP))
+	runResults, err := scan(domainOrIP)
 	if err != nil {
-		log.Println("Error marshalling scan results: ", err)
-	} else {
-		log.Println("Item Marshalled...")
+		log.Println("Error with completing scan: ", err)
+	}
+	results, err := dynamodbattribute.Marshal(runResults)
+	if err != nil {
+		log.Println("Error in dynamodbattribute.Marshal call: ", err)
 	}
 	_, err = dynamoDBClient.UpdateItem(&dynamodb.UpdateItemInput{
 		TableName: &dynamoDBTableAssets,
@@ -78,7 +80,7 @@ func handler(ctx context.Context, snsEvent events.SNSEvent) {
 		},
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":r": {
-				S: aws.String(string(results)),
+				M: results.M,
 			},
 		},
 		UpdateExpression: aws.String("SET #NMAP = :r"),
