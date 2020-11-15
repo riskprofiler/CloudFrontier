@@ -26,7 +26,7 @@ func handler(ctx context.Context, snsEvent events.SNSEvent) {
 	initial()
 	msg := snsEvent.Records[0].SNS.Message
 	fmt.Println("Message: ", msg)
-	qURL := os.Getenv("SQSQueueObservatoryURL")
+	qURL := os.Getenv("SQSQueueNmapURL")
 	res, err := sqsClient.SendMessage(&sqs.SendMessageInput{
 		QueueUrl:    &qURL,
 		MessageBody: &msg,
