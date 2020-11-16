@@ -239,7 +239,7 @@ resources:
       DeletionPolicy: ${self:custom.ResourceDeletionPolicy}
       Properties:
         BucketName: ${self:custom.S3BucketAnalyzers}
-        PublicAccessBlockConfiguragtion:
+        PublicAccessBlockConfiguration:
           BlockPublicAcls: true
           BlockPublicPolicy: true
           IgnorePublicAcls: true
