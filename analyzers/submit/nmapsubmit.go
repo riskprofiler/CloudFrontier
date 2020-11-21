@@ -13,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	// "github.com/aws/aws-sdk-go/service/sqs"
 )
 
@@ -61,9 +60,9 @@ func handler(ctx context.Context, snsEvent events.SNSEvent) {
 	if err != nil {
 		log.Println("Error with completing scan: ", err)
 	}
-	results, err := dynamodbattribute.Marshal(runResults)
+	results, err := json.Marshal(runResults)
 	if err != nil {
-		log.Println("Error in dynamodbattribute.Marshal call: ", err)
+		log.Println("Error marshalling results: ", err)
 	}
 	_, err = dynamoDBClient.UpdateItem(&dynamodb.UpdateItemInput{
 		TableName: &dynamoDBTableAssets,
@@ -80,7 +79,7 @@ func handler(ctx context.Context, snsEvent events.SNSEvent) {
 		},
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":r": {
-				M: results.M,
+				S: aws.String(string(results)),
 			},
 		},
 		UpdateExpression: aws.String("SET #NMAP = :r"),
