@@ -66,6 +66,20 @@ def update_for_vulns(new_image, updates):
             updates.append((category, value, additional_count))
 
 
+def update_for_nmap_results(new_image, updates):
+    if new_image['nmap_results'].get('NULL') is not True:
+        results = [i['S'] for i in new_image['nmap_results']['L']]
+        category = 'summary'
+        value = 'nmap_results'
+        additional_count = len(results)
+        updates.append((category, value, additional_count))
+        for result in results:
+            category = 'nmap_result'
+            value = result
+            additional_count = 1
+            updates.append((category, value, additional_count))
+
+
 def process_stream_record(record):
     """
     Identifies which counts need to be updated for a given stream record.
@@ -89,6 +103,8 @@ def process_stream_record(record):
                 update_for_ports(new_image, updates)
             elif key == 'vulns':
                 update_for_vulns(new_image, updates)
+            elif key == 'nmap_results':
+                update_for_nmap_results(new_image,updates)
 
     return updates
 
