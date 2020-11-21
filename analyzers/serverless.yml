@@ -228,7 +228,7 @@ functions:
     events:
       - sqs:
           arn:
-            Fn:GetAtt: [SQSQueueNmap, Arn]
+            Fn::GetAtt: [SQSQueueNmap, Arn]
           batchSize: 1
 
 resources:
@@ -275,3 +275,8 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:custom.SQSQueueObservatory}
+
+    SQSQueueNmap:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.SQSQueueNmap}
