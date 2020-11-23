@@ -192,7 +192,7 @@
             <div class="col-md-12 col-sm-12 col-lg-12 col-xl-12">
               <div class="row">
                 <div class="col-md-12 col-lg-12 col-xl-12 col-sm-6">
-                  <ul class="nav nav-pills asset-nav-pills">
+                  <ul class="nav nav-pills asset-nav-pills nav-justified">
                     <li class="nav-item">
                       <a
                         class="nav-link active mb0 bg-black"
