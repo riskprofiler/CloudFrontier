@@ -90,9 +90,9 @@
                         Most Commonly used ports
                       </div>
                       <div class="inner-section">
-                        <nw-loader v-if="commanPortsLoaded === null"></nw-loader>
-                        <center v-if="(commanPorts.length === 0 && commanPortsLoaded === false)"><h5>No data found</h5></center>
-                        <table v-if="(commanPorts.length > 0  && commanPortsLoaded === true)" class="table dashboard-table">
+                        <nw-loader v-if="commonPortsLoaded === null"></nw-loader>
+                        <center v-if="(commonPorts.length === 0 && commonPortsLoaded === false)"><h5>No data found</h5></center>
+                        <table v-if="(commonPorts.length > 0  && commonPortsLoaded === true)" class="table dashboard-table">
                           <thead>
                             <tr>
                               <th>Ports</th>
@@ -102,7 +102,7 @@
 
                           <tbody>
                             <nw-dashboard-table-row
-                              v-for="(item,index) in commanPorts"
+                              v-for="(item,index) in commonPorts"
                               :key="index"
                               :name="'Port '+item.name"
                               :count="item.value"
@@ -277,6 +277,20 @@
                         <span class="total-no">({{count.cdn}})</span>
                       </a>
                     </li>
+                    <li class="nav-item">
+                      <a
+                        class="nav-link bg-black"
+                        data-toggle="pill"
+                        @click="loadDate('nmap_results')"
+                        href="#nmap_results"
+                      >
+                        <span class="icon">
+                          <i class="fas fa-search"></i>
+                        </span>
+                        <span class="pill-name">Nmap Scan Results</span>
+                        <span class="total-no">({{count.nmapResults}})</span>
+                      </a>
+                    </li>
                   </ul>
                 </div>
 
@@ -411,7 +425,6 @@
                             <th>Cloud Provider</th>
                           </tr>
                         </thead>
-
                         <tbody>
                           <nw-cdn-row
                             v-for="(item,index) in cdn"
@@ -422,6 +435,30 @@
                             :status="item.status"
                             :provider="item.provider"
                           ></nw-cdn-row>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div class="tab-pane container fade" id="nmap_results">
+                      <table class="table table-striped asset-table bg-black">
+                        <thead>
+                          <tr>
+                            <th>Host</th>
+                            <th>Open Port/Protocol</th>
+                            <th>Service</th>
+                            <th>Script Results</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <nw-nmap-row
+                            v-for="(item,index) in nmapResults"
+                            :key="index"
+                            :host="item.host"
+                            :port="item.port"
+                            :protocol="item.protocol"
+                            :service="item.service"
+                            :script="item.script"
+                          ></nw-nmap-row>
                         </tbody>
                       </table>
                     </div>
@@ -491,6 +528,7 @@ import nwDataStorgaeRow from "./sub-components/internetAssets/data-storage-row";
 import nwApiEndpointRow from "./sub-components/internetAssets/api-endpoint.row";
 import nwcdnRow from "./sub-components/internetAssets/cdn-row";
 import nwDashboardTableRow from "./sub-components/internetAssets/dashboard-table-row";
+import nwNmapRow from "./sub-components/internetAssets/nmap-row";
 import loader from "./loader";
 
 export default {
@@ -504,6 +542,7 @@ export default {
     "nw-api-endpoints-row": nwApiEndpointRow,
     "nw-cdn-row": nwcdnRow,
     "nw-dashboard-table-row": nwDashboardTableRow,
+    "nw-nmap-row": nwNmapRow,
     "nw-loader": loader
   },
   data() {
@@ -526,15 +565,18 @@ export default {
         objectStorage: 0,
         dataStorgae: 0,
         apiEndpoint: 0,
-        cdn: 0
+        cdn: 0,
+        nmapResults: 0
       },
-      commanPorts: [],
+      commonPorts: [],
       administrativePorts: [],
       vulnerabilities: [],
+      nmapResults: [],
       watchedBanner: false,
-      commanPortsLoaded: null,
+      commonPortsLoaded: null,
       administrativePortsLoaded: null,
-      vulnerabilitiesLoaded: null
+      vulnerabilitiesLoaded: null,
+      nmapResultsLoaded: null
     };
   },
   methods: {
@@ -607,28 +649,28 @@ export default {
           this.administrativePortsLoaded = false;
         });
 
-      var commanPortsConfig = {
+      var commonPortsConfig = {
         method: "get",
         url: this.apiUrl + "/dashboard/common-ports",
         headers: {}
       };
 
-      axios(commanPortsConfig)
-        .then(commanPorts => {
-          this.commanPortsLoaded = false;
-          if (commanPorts.data.data.common_ports != "NA") {
-            this.commanPortsLoaded = true;
+      axios(commonPortsConfig)
+        .then(commonPorts => {
+          this.commonPortsLoaded = false;
+          if (commonPorts.data.data.common_ports != "NA") {
+            this.commonPortsLoaded = true;
             if (
-              this.commanPorts.length <
-              commanPorts.data.data.common_ports.length
+              this.commonPorts.length <
+              commonPorts.data.data.common_ports.length
             ) {
-              this.commanPorts = [];
-              commanPorts.data.data.common_ports.map(item => {
+              this.commonPorts = [];
+              commonPorts.data.data.common_ports.map(item => {
                 Object.entries(item).forEach(([key, value]) => {
                   let obj = {};
                   obj.name = key;
                   obj.value = value;
-                  this.commanPorts.push(obj);
+                  this.commonPorts.push(obj);
                 });
               });
             }
@@ -636,7 +678,7 @@ export default {
         })
         .catch((error) => {
           console.log(error);
-          this.commanPortsLoaded = false;
+          this.commonPortsLoaded = false;
         });
 
       var vulnerabilitiesConfig = {
@@ -669,6 +711,38 @@ export default {
         .catch((error) =>{
           console.log(error);
           this.vulnerabilitiesLoaded = false;
+        });
+
+      var nmapResultsConfig = {
+        method: "get",
+        url: this.apiUrl + "/dashboard/nmap-results",
+        headers: {}
+      };
+
+      axios(nmapResultsConfig)
+        .then(nmapResults => {
+          this.nmapResultsLoaded = false;
+          if(nmapResults.data.data.nmap_results != "NA") {
+            this.nmapResultsLoaded = true;
+            if (
+              this.nmapResults.length <
+              nmapResults.data.data.nmap_results.length
+            ) {
+              this.nmapResults = []
+              nmapResults.data.data.nmap_results.map(item => {
+                Object.entries(item).forEach(([key, value]) => {
+                  let obj = {};
+                  obj.name = key;
+                  obj.value = value;
+                  this.nmapResults.push(obj);
+                });
+              });
+            }
+          }
+        })
+        .catch(error => {
+          console.log(error);
+          this.nmapResultsLoaded = false;
         });
     },
     loadDate(query) {
@@ -722,6 +796,12 @@ export default {
           if (this.cdn.length < assets.length) {
             this.count.cdn = assets.length;
             this.cdn = assets;
+          }
+          break;
+        case "nmap_results":
+          if (this.nmapResults.length < assets.length) {
+            this.count.nmapResults = assets.length;
+            this.nmapResults = assets.length;
           }
           break;
         default:
@@ -779,6 +859,7 @@ export default {
     this.loadDate("data_storage");
     this.loadDate("api_endpoint");
     this.loadDate("cdn");
+    this.loadDate("nmap_results");
   }
 };
 </script>
