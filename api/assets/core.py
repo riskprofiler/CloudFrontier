@@ -72,3 +72,7 @@ class APIEndpoint(Asset):
 
 class CDN(Asset):
     asset_type = 'cdn'
+
+
+class NmapResults(Asset):
+    asset_type = 'nmap_results'

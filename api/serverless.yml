@@ -143,6 +143,14 @@ functions:
           method: GET
           cors: true
 
+  APIDashboardNmapResults:
+    handler: dashboard/nmap_results.handler
+    events:
+      - http:
+          path: dashboard/nmap-results
+          method: GET
+          cors: true
+
 resources:
   Resources:
     # API Gateway REST API:
