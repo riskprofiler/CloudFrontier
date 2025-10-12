@@ -11,6 +11,7 @@ from assets.core import (
     DataStorage,
     APIEndpoint,
     CDN,
+    NmapResults,
 )
 
 dynamodb = DynamoDbWrapper()
@@ -22,6 +23,7 @@ asset_map = {
     'data_storage': DataStorage(),
     'api_endpoint': APIEndpoint(),
     'cdn': CDN(),
+    'nmap_results': NmapResults(),
 }
 
 

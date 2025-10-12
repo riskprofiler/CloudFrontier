@@ -6,7 +6,7 @@ plugins:
   - serverless-s3-sync
 
 custom:
-  S3BucketFrontend: cloud-frontier-frontend-${opt:stage, 'dev'}
+  S3BucketFrontend: cloud-frontier-frontend-#{AWS::AccountId}-${opt:stage, 'dev'}
 
   s3Sync:
     - bucketName: ${self:custom.S3BucketFrontend}

@@ -33,7 +33,7 @@ def handler(event, context):
             'statusCode': 200,
             'body': json.dumps({
                 'data': {
-                    'vulnerabilities': vuln,
+                    'vulnerabilities': vulns,
                 }
             })
         }
